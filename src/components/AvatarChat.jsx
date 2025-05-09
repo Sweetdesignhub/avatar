@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import useAvatar from '../hooks/useAvatar';
-import ErrorMessage from './ErrorMessage';
-import MessageBox from './MessageBox';
+import { useState } from "react";
+import useAvatar from "../hooks/useAvatar";
+import ErrorMessage from "./ErrorMessage";
+import MessageBox from "./MessageBox";
 
-const AvatarChat = ({ config }) => {
-  const [imgUrl, setImgUrl] = useState('');
+const AvatarChat = ({ config, onStartingChange }) => {
+  const [imgUrl, setImgUrl] = useState("");
 
   const {
     sessionActive,
@@ -18,7 +18,7 @@ const AvatarChat = ({ config }) => {
     toggleMicrophone,
     stopSpeaking,
     clearChatHistory,
-    handleUserQuery
+    handleUserQuery,
   } = useAvatar({
     speechConfig: config.speech,
     openAIConfig: config.openAI,
@@ -30,9 +30,13 @@ const AvatarChat = ({ config }) => {
     showSubtitles: config.avatar.showSubtitles,
     autoReconnectAvatar: config.avatar.autoReconnect,
     useLocalVideoForIdle: config.avatar.useLocalVideoForIdle,
-    prompt: config.openAI.prompt
+    prompt: config.openAI.prompt,
   });
 
+  const handleStartingChange = (isStarting) => {
+    console.log("Starting state in grandchild:", isStarting);
+    onStartingChange?.(isStarting); // forward to parent
+  };
   return (
     <div className="w-full flex flex-col items-center justify-center">
       <ErrorMessage errorMessage={errorMessage} />
@@ -52,6 +56,7 @@ const AvatarChat = ({ config }) => {
         stopSession={stopSession}
         microphoneText={microphoneText}
         isSpeaking={isSpeaking}
+        onStartingChange={handleStartingChange}
       />
     </div>
   );

@@ -32,7 +32,7 @@ export default function AllOptions({ onOptionSelect }) {
       icon: <FaRegHeart className="text-3xl" />,
       title: "Angioplasty Balloon Catheter Usage",
       description: "What is the use of Catheter in a Angioplasty Surgery?",
-      color: "orange",
+      color: "pink",
     },
     {
       id: "pacemaker",

@@ -1,15 +1,9 @@
-import {
-  FaSearch,
-  FaPlus,
-  FaBook,
-  FaAward,
-  FaChartLine,
-} from "react-icons/fa";
+import { FaSearch, FaPlus, FaBook, FaAward, FaChartLine } from "react-icons/fa";
 
 export default function Navbar() {
   return (
-    <nav className="bg-white border-b border-gray-200">
-      <div className="max-w-full mx-auto px-4 py-2 flex items-center">
+    <nav className="bg-white border-b border-gray-200 font-johnsonText">
+      <div className="max-w-full mx-auto px-4 py-3 flex items-center">
         {/* Logo */}
         <div className="flex items-center mr-4">
           {/* <span className="text-red-600 font-bold text-lg">J&J</span> */}
@@ -34,29 +28,24 @@ export default function Navbar() {
 
         {/* Buttons */}
         <button
+          onClick={() => window.location.reload()}
           className="flex items-center border border-gray-300 text-gray-600 rounded-full px-3 py-1 text-sm mr-4 hover:bg-gray-100 transition"
         >
           <FaPlus className="mr-1" />
           New Training
         </button>
 
-        <button
-          className="flex items-center text-gray-800 font-medium text-sm mr-4 hover:text-gray-600 transition"
-        >
+        <button className="flex items-center text-gray-800 font-medium text-sm mr-4 hover:text-gray-600 transition">
           <FaBook className="mr-1" />
           My Trainings
         </button>
 
-        <button
-          className="flex items-center text-gray-800 font-medium text-sm mr-4 hover:text-gray-600 transition"
-        >
+        <button className="flex items-center text-gray-800 font-medium text-sm mr-4 hover:text-gray-600 transition">
           <FaAward className="mr-1" />
           AI Workspace
         </button>
 
-        <button
-          className="flex items-center text-gray-800 font-medium text-sm hover:text-gray-600 transition"
-        >
+        <button className="flex items-center text-gray-800 font-medium text-sm hover:text-gray-600 transition">
           <FaChartLine className="mr-1" />
           Insights
         </button>
