@@ -24,6 +24,7 @@ const MessageBox = ({
   const textareaRef = useRef(null);
   const [starting, setStarting] = useState(true);
   const [startingAvatar, setStartingAvatar] = useState(true);
+  const [message, setMessage] = useState("");
 
   const handleStart = () => {
     setStarting(true); // 1. Set starting to true
@@ -82,6 +83,35 @@ const MessageBox = ({
       textareaRef.current.value = "";
     }
   }, []);
+
+  const handleOptionSelect = (label) => {
+    setMessage(label);
+    handleStart();
+    console.log("cdsbvcuhbsdv");
+
+    // Delay Enter key press by 30 seconds (30000 ms)
+    setTimeout(() => {
+      console.log("Clicked Enter");
+      const enterEvent = new KeyboardEvent("keyup", {
+        key: "Enter",
+        keyCode: 13,
+        code: "Enter",
+        which: 13,
+        bubbles: true,
+      });
+
+      document.getElementById("userMessageBox").dispatchEvent(enterEvent);
+    }, 10000);
+  };
+
+  const handleStartStop = (label) => {
+    if (sessionActive && !useLocalVideoForIdle) {
+      stopSession();
+    } else {
+      handleStart();
+    }
+  };
+
   // (sessionActive || useLocalVideoForIdle) &&
   return (
     <div className="flex flex-col items-center font-johnsonText">
@@ -136,6 +166,8 @@ const MessageBox = ({
         <div className="flex flex-col bg-white rounded-xl  border border-gray-200 shadow-md p-4 w-full max-w-4xl mx-auto">
           <textarea
             id="userMessageBox"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
             ref={textareaRef}
             className="w-full min-h-[40px] max-h-[200px] overflow-auto resize-y rounded-xl pt-2 px-4 bg-white text-gray-700 placeholder-gray-400 focus:outline-none text-semibold"
             onKeyUp={handleKeyUp}
@@ -144,7 +176,7 @@ const MessageBox = ({
           ></textarea>
           <div className="flex justify-between items-center gap-4 mt-3">
             <div className="flex justify-around  ">
-              <div className="relative group">
+              {/* <div className="relative group">
                 <button
                   onClick={stopSession}
                   disabled={!sessionActive}
@@ -168,8 +200,8 @@ const MessageBox = ({
                 <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 text-sm text-gray-800 bg-white rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
                   Close Avatar Session
                 </div>
-              </div>
-              <div className="relative group">
+              </div> */}
+              {/* <div className="relative group">
                 <button
                   onClick={stopSpeaking}
                   disabled={!isSpeaking}
@@ -193,9 +225,9 @@ const MessageBox = ({
                 <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 text-sm text-gray-800 bg-white rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
                   Stop Speaking
                 </div>
-              </div>
+              </div> */}
 
-              <div className="relative group">
+              {/* <div className="relative group">
                 <button
                   onClick={clearChatHistory}
                   disabled={!sessionActive} // Assuming you want to disable it similarly
@@ -219,7 +251,7 @@ const MessageBox = ({
                 <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 text-sm text-gray-800 bg-white rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
                   Clear Chat History
                 </div>
-              </div>
+              </div> */}
 
               <div className="relative group">
                 <button
@@ -244,23 +276,29 @@ const MessageBox = ({
               </div>
             </div>
             <button
-              onClick={handleStart}
-              disabled={sessionActive && !useLocalVideoForIdle}
+              // onClick={handleStart}
+              onClick={handleStartStop}
+              // disabled={sessionActive && !useLocalVideoForIdle}
               className={`${
                 sessionActive && !useLocalVideoForIdle
                   ? "bg-[#EB1700] hover:bg-[#c91400] text-white"
                   : "bg-transparent text-gray-500"
               }  disabled:opacity-50 rounded-full p-2 my-2 w-40 h-10 flex items-center justify-center border border-gray-200`}
-              title="Open Avatar Session"
+              title={`Open Avatar Session`}
             >
-              Start Training
+              {` ${
+                sessionActive && !useLocalVideoForIdle
+                  ? "Stop Training "
+                  : "Start Training "
+              } `}
+              {/* Start Training */}
             </button>
           </div>
         </div>
       </div>
       {startingAvatar && (
         <div className="max-w-4xl">
-          <AllOptions />
+          <AllOptions onOptionSelect={handleOptionSelect} />
         </div>
       )}
     </div>

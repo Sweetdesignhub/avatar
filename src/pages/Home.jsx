@@ -52,7 +52,7 @@ export default function Home() {
       style={{
         backgroundImage: isStarting
           ? "url('/Backgorund.jpg')"
-          : "url('/Backgorund_WithoutIcon.png')",
+          : "url('/Backgorund_WithoutIcon.jpg')",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}

@@ -7,7 +7,7 @@ export default function OptionButton({
   color,
   onClick,
 }) {
-  console.log("Color: ", color);
+  // console.log("Color: ", color);
   return (
     <div
       onClick={onClick}

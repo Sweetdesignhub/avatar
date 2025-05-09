@@ -98,6 +98,7 @@ const useAvatar = ({
   }, [sessionActive]);
 
   const connectAvatar = useCallback(() => {
+    console.log("Is Loading");
     console.log("Starting avatar connection...");
     setErrorMessage("");
     if (speechConfig.apiKey === "") {
@@ -319,6 +320,7 @@ const useAvatar = ({
       });
 
       peerConnection.current.oniceconnectionstatechange = () => {
+        console.log("Loading Completed3");
         console.log(
           `WebRTC status: ${peerConnection.current.iceConnectionState}`
         );
