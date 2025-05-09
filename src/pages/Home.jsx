@@ -33,7 +33,7 @@ export default function Home() {
     },
     sttTts: {
       sttLocales: "en-US,de-DE,es-ES,fr-FR,it-IT,ja-JP,ko-KR,zh-CN",
-      ttsVoice: "en-US-AvaMultilingualNeural",
+      ttsVoice: "en-US-ChristopherNeural",
       customVoiceEndpointId: "",
       personalVoiceSpeakerProfileID: "",
       continuousConversation: false,
@@ -52,7 +52,7 @@ export default function Home() {
       style={{
         backgroundImage: isStarting
           ? "url('/Backgorund.jpg')"
-          : "url('/Backgorund_WithoutIcon.jpg')",
+          : "url('/Backgorund_WithoutIcon.png')",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
