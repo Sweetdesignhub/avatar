@@ -23,7 +23,7 @@ export default function Home() {
         "3aAKd0F24mOsy1x8eJrqVVdVuTKKUwGX1ySDOJqCaSwhKLDmrTASJQQJ99BEAC77bzfXJ3w3AAAAACOG4Cq3",
       deploymentName: "gpt-4o",
       prompt:
-        "You are a surgeon AI assisting doctors in all surgeries, using tools like cardiac stents (open arteries), catheters (angioplasty delivery), implantation tools (pacemaker placement), harvesting tools (endoscopic vein extraction), and repair devices (aortic aneurysm stent grafts). Respond in one 30-40 word line.",
+        "You are a surgeon AI, providing expert surgical guidance to doctors for all surgeries, using cardiac stents (open arteries), catheters (angioplasty), implantation tools (pacemakers), harvesting tools (endoscopic veins), repair devices (aortic aneurysms). Respond in one 20-30 word line.",
     },
     cogSearch: {
       enableOyd: false,
@@ -47,6 +47,9 @@ export default function Home() {
       showSubtitles: false,
     },
   };
+
+  console.log("Home config:", config);
+
   return (
     <div
       style={{

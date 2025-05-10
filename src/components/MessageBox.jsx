@@ -619,7 +619,7 @@ const MessageBox = ({
   }, [sessionActive, isLoading]);
 
   useEffect(() => {
-    console.log("assistantMessages content:", assistantMessages);
+    console.log("assistantMessages received:", assistantMessages);
   }, [assistantMessages]);
 
   console.log("Session Active:", sessionActive, "Is Loading:", isLoading);
@@ -687,7 +687,7 @@ const MessageBox = ({
             background: transparent !important;
           }
           .assistant-content {
-            min-height: 20px; /* Ensure container is visible even when empty */
+            min-height: 20px; /* Ensure container is visible */
           }
         `}
       </style>
@@ -703,14 +703,25 @@ const MessageBox = ({
               className="overflow-y-auto p-2 rounded-lg"
               style={{ 
                 scrollbarWidth: "thin",
-                display: sessionActive ? 'block' : 'none' // Simplify condition
+                display: sessionActive ? 'block' : 'none'
               }}
             >
-              <div
-                id="assistantMessages"
-                className="assistant-content"
-                dangerouslySetInnerHTML={{ __html: assistantMessages }}
-              ></div>
+              <div id="assistantMessages" className="assistant-content">
+                {Array.isArray(assistantMessages) ? (
+                  assistantMessages.map((message, index) => (
+                    <div
+                      key={index}
+                      className="assistant-message"
+                      dangerouslySetInnerHTML={{ __html: message }}
+                    />
+                  ))
+                ) : (
+                  <div
+                    className="assistant-message"
+                    dangerouslySetInnerHTML={{ __html: assistantMessages }}
+                  />
+                )}
+              </div>
             </div>
 
             <div className="flex items-end" style={{ zIndex: 10, background: 'transparent' }}>
