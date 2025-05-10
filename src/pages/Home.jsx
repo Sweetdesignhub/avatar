@@ -23,7 +23,7 @@ export default function Home() {
         "3aAKd0F24mOsy1x8eJrqVVdVuTKKUwGX1ySDOJqCaSwhKLDmrTASJQQJ99BEAC77bzfXJ3w3AAAAACOG4Cq3",
       deploymentName: "gpt-4o",
       prompt:
-        "You are an AI assistant that helps people find information. Just Give response in 1 line always of 20-30 words",
+        "You are a surgeon AI assisting doctors in all surgeries, using tools like cardiac stents (open arteries), catheters (angioplasty delivery), implantation tools (pacemaker placement), harvesting tools (endoscopic vein extraction), and repair devices (aortic aneurysm stent grafts). Respond in one 30-40 word line.",
     },
     cogSearch: {
       enableOyd: false,

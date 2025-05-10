@@ -32,6 +32,9 @@ const useAvatar = ({
   const speakingText = useRef("");
   const lastInteractionTime = useRef(new Date());
   const lastSpeakTime = useRef(null);
+  const retryCount = useRef(0);
+  const maxRetries = 3;
+  const messageTimeoutRef = useRef(null); // Ref to store timeout ID
 
   const sentenceLevelPunctuations = [
     ".",
@@ -84,10 +87,12 @@ const useAvatar = ({
               videoElement.srcObject = stream;
               videoElement.autoplay = true;
               videoElement.playsInline = true;
-              videoElement.style.width = "400px";
-              videoElement.style.height = "4000px";
+              videoElement.style.width = "450px";
+              videoElement.style.height = "300px";
+              videoElement.style.background = "transparent";
+              videoElement.style.backgroundColor = "rgba(0,0,0,0)";
               remoteVideoDiv.appendChild(videoElement);
-              console.log("Video element re-added to DOM");
+              console.log("Video element re-added to DOM with transparent background");
             }
           }
         });
@@ -97,12 +102,32 @@ const useAvatar = ({
     }
   }, [sessionActive]);
 
-  const connectAvatar = useCallback(() => {
-    console.log("Is Loading");
-    console.log("Starting avatar connection...");
-    setErrorMessage("");
+  const disconnectAvatar = useCallback(() => {
+    console.log("Disconnecting avatar...");
+    if (avatarSynthesizer.current) {
+      avatarSynthesizer.current.close();
+      avatarSynthesizer.current = null;
+    }
+    if (speechRecognizer.current) {
+      speechRecognizer.current.stopContinuousRecognitionAsync();
+      speechRecognizer.current.close();
+      speechRecognizer.current = null;
+    }
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+    setSessionActive(false);
+    console.log("Avatar disconnected");
+  }, []);
+
+  const connectAvatar = useCallback((retryCallback = () => {}) => {
+    console.log(`Starting avatar connection (Attempt ${retryCount.current + 1}/${maxRetries})...`);
+    setErrorMessage(retryCount.current > 0 ? `Retrying connection... (Attempt ${retryCount.current + 1}/${maxRetries})` : "");
+    
     if (speechConfig.apiKey === "") {
       setErrorMessage("Please fill in the API key of your speech resource.");
+      retryCount.current = 0;
       return;
     }
     if (
@@ -110,6 +135,7 @@ const useAvatar = ({
       speechConfig.privateEndpoint === ""
     ) {
       setErrorMessage("Please fill in the Azure Speech endpoint.");
+      retryCount.current = 0;
       return;
     }
     if (
@@ -120,6 +146,7 @@ const useAvatar = ({
       setErrorMessage(
         "Please fill in the Azure OpenAI endpoint, API key, and deployment name."
       );
+      retryCount.current = 0;
       return;
     }
     if (
@@ -131,6 +158,7 @@ const useAvatar = ({
       setErrorMessage(
         "Please fill in the Azure Cognitive Search endpoint, API key, and index name."
       );
+      retryCount.current = 0;
       return;
     }
 
@@ -154,9 +182,12 @@ const useAvatar = ({
 
     const avatarSdkConfig = new SpeechSDK.AvatarConfig(
       avatarConfig.character,
-      avatarConfig.style
+      avatarConfig.style,
+      {
+        customized: avatarConfig.customized,
+        transparentBackground: true
+      }
     );
-    avatarSdkConfig.customized = avatarConfig.customized;
     avatarSynthesizer.current = new SpeechSDK.AvatarSynthesizer(
       speechSynthesisConfig,
       avatarSdkConfig
@@ -207,12 +238,23 @@ const useAvatar = ({
           setupWebRTC(
             responseData.Urls[0],
             responseData.Username,
-            responseData.Password
+            responseData.Password,
+            retryCallback
           );
         } else {
-          setErrorMessage(
-            `Failed to fetch WebRTC token: ${this.status} ${this.statusText}`
-          );
+          retryCount.current += 1;
+          if (retryCount.current >= maxRetries) {
+            setErrorMessage(
+              "Failed to connect to the avatar after multiple attempts. Please check your network/refresh or try again later."
+            );
+            retryCount.current = 0;
+            console.error(`Failed to fetch WebRTC token after ${maxRetries} attempts: ${this.status} ${this.statusText}`);
+          } else {
+            setTimeout(() => {
+              disconnectAvatar();
+              connectAvatar(retryCallback);
+            }, 2000);
+          }
         }
       }
     };
@@ -225,29 +267,11 @@ const useAvatar = ({
     enableOyd,
     sttTtsConfig,
     avatarConfig,
+    disconnectAvatar
   ]);
 
-  const disconnectAvatar = useCallback(() => {
-    console.log("Disconnecting avatar...");
-    if (avatarSynthesizer.current) {
-      avatarSynthesizer.current.close();
-      avatarSynthesizer.current = null;
-    }
-    if (speechRecognizer.current) {
-      speechRecognizer.current.stopContinuousRecognitionAsync();
-      speechRecognizer.current.close();
-      speechRecognizer.current = null;
-    }
-    if (peerConnection.current) {
-      peerConnection.current.close();
-      peerConnection.current = null;
-    }
-    setSessionActive(false);
-    console.log("Avatar disconnected");
-  }, []);
-
   const setupWebRTC = useCallback(
-    (iceServerUrl, iceServerUsername, iceServerCredential) => {
+    (iceServerUrl, iceServerUsername, iceServerCredential, retryCallback) => {
       console.log("Setting up WebRTC with ICE server:", iceServerUrl);
       peerConnection.current = new RTCPeerConnection({
         iceServers: [
@@ -279,6 +303,7 @@ const useAvatar = ({
             console.log("Audio element added to DOM");
           }
         } else if (event.track.kind === "video") {
+          console.log("Video track received:", event.track);
           if (!document.getElementById("videoPlayer")) {
             const videoElement = document.createElement("video");
             videoElement.id = "videoPlayer";
@@ -287,9 +312,13 @@ const useAvatar = ({
             videoElement.playsInline = true;
             videoElement.style.width = "450px";
             videoElement.style.height = "300px";
+            videoElement.style.background = "transparent";
+            videoElement.style.backgroundColor = "rgba(0,0,0,0)";
             remoteVideoDiv.appendChild(videoElement);
-            console.log("Video element added to DOM");
-            setSessionActive(true);
+            console.log("Video element added to DOM with transparent background");
+            console.log("Video stream:", event.streams[0]);
+            const videoTrack = event.streams[0].getVideoTracks()[0];
+            console.log("Video track settings:", videoTrack.getSettings());
           }
         }
       };
@@ -320,14 +349,23 @@ const useAvatar = ({
       });
 
       peerConnection.current.oniceconnectionstatechange = () => {
-        console.log("Loading Completed3");
         console.log(
           `WebRTC status: ${peerConnection.current.iceConnectionState}`
         );
         if (peerConnection.current.iceConnectionState === "failed") {
-          setErrorMessage(
-            "WebRTC connection failed. Check network or firewall settings."
-          );
+          retryCount.current += 1;
+          if (retryCount.current >= maxRetries) {
+            setErrorMessage(
+              "Failed to connect to the avatar after multiple attempts. Please check your network/refresh or try again later."
+            );
+            retryCount.current = 0;
+            console.error(`WebRTC connection failed after ${maxRetries} attempts`);
+          } else {
+            setTimeout(() => {
+              disconnectAvatar();
+              connectAvatar(retryCallback);
+            }, 2000);
+          }
         }
       };
 
@@ -340,19 +378,43 @@ const useAvatar = ({
         .then((r) => {
           if (r.reason === SpeechSDK.ResultReason.SynthesizingAudioCompleted) {
             console.log(`Avatar started. Result ID: ${r.resultId}`);
+            retryCount.current = 0; // Reset retry count on success
+            setSessionActive(true);
           } else {
             console.error(`Unable to start avatar. Result ID: ${r.resultId}`);
-            setErrorMessage(
-              "Avatar failed to start. Check console for details."
-            );
+            retryCount.current += 1;
+            if (retryCount.current >= maxRetries) {
+              setErrorMessage(
+                "Failed to connect to the avatar after multiple attempts. Please check your network/refresh or try again later."
+              );
+              retryCount.current = 0;
+              console.error(`Avatar failed to start after ${maxRetries} attempts. Result ID: ${r.resultId}`);
+            } else {
+              setTimeout(() => {
+                disconnectAvatar();
+                retryCallback();
+              }, 2000);
+            }
           }
         })
         .catch((error) => {
           console.error(`Avatar failed to start: ${error}`);
-          setErrorMessage("Failed to start avatar. Check console for details.");
+          retryCount.current += 1;
+          if (retryCount.current >= maxRetries) {
+            setErrorMessage(
+              "Failed to connect to the avatar after multiple attempts. Please check your network/refresh or try again later."
+            );
+            retryCount.current = 0;
+            console.error(`Avatar failed to start after ${maxRetries} attempts: ${error}`);
+          } else {
+            setTimeout(() => {
+              disconnectAvatar();
+              retryCallback();
+            }, 2000);
+          }
         });
     },
-    [showSubtitles]
+    [showSubtitles, disconnectAvatar]
   );
 
   const initMessages = useCallback(() => {
@@ -367,8 +429,8 @@ const useAvatar = ({
       "&": "&",
       "<": "<",
       ">": ">",
-      '"': '"',
-      "'": "",
+      '"': "",
+      "'": "'",
       "/": "/",
     };
     return String(text).replace(/[&<>"'\/]/g, (match) => entityMap[match]);
@@ -403,18 +465,20 @@ const useAvatar = ({
           text
         )}<break time='${endingSilenceMs}ms' /></mstts:ttsembedding></voice></speak>`;
       }
-      // bg-gradient-to-r from-purple-50 to-pink-50
 
       if (enableDisplayTextAlignmentWithSpeech && !skipUpdatingChatHistory) {
+        // Clear any existing timeout
+        if (messageTimeoutRef.current) {
+          clearTimeout(messageTimeoutRef.current);
+        }
+        // Set the latest message
         setAssistantMessages(
-          (prev) =>
-            `<div class="flex justify-start mb-2"><div class="text-[#000000] px-6 py-5 rounded-3xl max-w-[90%] shadow-sm text-xl leading-relaxed font-bold">${text.replace(
-              /\n/g
-              // "<br/>"
-            )}</div></div>${prev}`
+          `<div class="flex justify-start mb-2"><div class="text-[#000000] px-6 py-5 rounded-3xl max-w-[90%] shadow-sm text-xl leading-relaxed font-bold">${text.replace(
+            /\n/g,
+            ""
+          )}</div></div>`
         );
-        const assistantMessagesDiv =
-          document.getElementById("assistantMessages");
+        const assistantMessagesDiv = document.getElementById("assistantMessages");
         if (assistantMessagesDiv) assistantMessagesDiv.scrollTop = 0;
       }
 
@@ -430,6 +494,13 @@ const useAvatar = ({
             console.log(
               `Speech synthesized for text [${text}]. Result ID: ${result.resultId}`
             );
+            // Set timeout to clear message after 2 seconds, only after speech completes
+            if (enableDisplayTextAlignmentWithSpeech && !skipUpdatingChatHistory) {
+              messageTimeoutRef.current = setTimeout(() => {
+                setAssistantMessages("");
+                messageTimeoutRef.current = null;
+              }, 5000);
+            }
           } else {
             console.error(`Error speaking SSML. Result ID: ${result.resultId}`);
             setErrorMessage("Failed to synthesize speech.");
@@ -497,6 +568,13 @@ const useAvatar = ({
       );
       const chatHistoryDiv = document.getElementById("chatHistory");
       if (chatHistoryDiv) chatHistoryDiv.scrollTop = 0;
+
+      // Clear previous assistant message and timeout immediately
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+        messageTimeoutRef.current = null;
+      }
+      setAssistantMessages("");
 
       if (isSpeaking) {
         stopSpeaking();
@@ -617,13 +695,11 @@ const useAvatar = ({
 
                     if (!enableDisplayTextAlignmentWithSpeech) {
                       setAssistantMessages(
-                        (prev) => `
+                        (prev) =>
+                          `
                   <div class="flex justify-start mb-2">
-                    <div class=" text-[#000000] px-6 py-5 rounded-3xl max-w-[90%] shadow-sm text-xl leading-relaxed font-bold">
-                      ${displaySentence.replace(
-                        /\n/g
-                        // "<br/>"
-                      )}
+                    <div class="text-[#000000] px-6 py-5 rounded-3xl max-w-[90%] shadow-sm text-xl leading-relaxed font-bold">
+                      ${displaySentence.replace(/\n/g, "")}
                     </div>
                   </div>
                   ${prev}
@@ -648,7 +724,7 @@ const useAvatar = ({
           };
           setAssistantMessages(
             (prev) =>
-              `<div class="flex justify-start mb-2"><div class=" text-[#000000] px-6 py-5 rounded-3xl max-w-[90%] shadow-sm text-xl leading-relaxed font-bold"></div></div>${prev}`
+              `<div class="flex justify-start mb-2"><div class="text-[#000000] px-6 py-5 rounded-3xl max-w-[90%] shadow-sm text-xl leading-relaxed font-bold"></div></div>${prev}`
           );
           return read();
         })
@@ -707,7 +783,8 @@ const useAvatar = ({
       setSessionActive(true);
       return;
     }
-    connectAvatar();
+    retryCount.current = 0; // Reset retry count
+    connectAvatar(() => connectAvatar(() => connectAvatar())); // Pass retry callback
   }, [useLocalVideoForIdle, connectAvatar]);
 
   const stopSession = useCallback(() => {
@@ -715,6 +792,7 @@ const useAvatar = ({
     lastInteractionTime.current = new Date();
     disconnectAvatar();
     document.getElementById("localVideo").hidden = true;
+    retryCount.current = 0; // Reset retry count
   }, [disconnectAvatar]);
 
   const clearChatHistory = useCallback(() => {
@@ -747,7 +825,8 @@ const useAvatar = ({
       console.log("Microphone permission granted");
 
       if (useLocalVideoForIdle && !sessionActive) {
-        connectAvatar();
+        retryCount.current = 0; // Reset retry count
+        connectAvatar(() => connectAvatar(() => connectAvatar()));
         setTimeout(() => {
           const audioPlayer = document.getElementById("audioPlayer");
           if (audioPlayer)
