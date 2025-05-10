@@ -58,7 +58,7 @@ export default function AllOptions({ onOptionSelect }) {
   ];
 
   return (
-    <div className="p-8 mt-4">
+    <div className="px-8 pt-8 ">
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6 mb-8">
         {deviceOptions.map((option) => (
           <div key={option.id}>

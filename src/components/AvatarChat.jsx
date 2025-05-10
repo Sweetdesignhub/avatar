@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import useAvatar from "../hooks/useAvatar";
 import ErrorMessage from "./ErrorMessage";
 import MessageBox from "./MessageBox";
 
 const AvatarChat = ({ config, onStartingChange }) => {
   const [imgUrl, setImgUrl] = useState("");
+  const [localErrorMessage, setLocalErrorMessage] = useState("");
 
   const {
     sessionActive,
@@ -33,13 +34,30 @@ const AvatarChat = ({ config, onStartingChange }) => {
     prompt: config.openAI.prompt,
   });
 
+  // Sync hook error with local state
+  useEffect(() => {
+    if (errorMessage) {
+      setLocalErrorMessage(errorMessage);
+    }
+  }, [errorMessage]);
+
+  // Auto-dismiss error
+  useEffect(() => {
+    if (localErrorMessage) {
+      const timer = setTimeout(() => {
+        setLocalErrorMessage("");
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [localErrorMessage]);
+
   const handleStartingChange = (isStarting) => {
     console.log("Starting state in grandchild:", isStarting);
     onStartingChange?.(isStarting); // forward to parent
   };
   return (
     <div className="w-full flex flex-col items-center justify-center">
-      <ErrorMessage errorMessage={errorMessage} />
+      <ErrorMessage errorMessage={localErrorMessage} />
       <MessageBox
         sessionActive={sessionActive}
         imgUrl={imgUrl}

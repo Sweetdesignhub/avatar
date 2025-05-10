@@ -56,10 +56,10 @@ export default function Home() {
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
-      className="min-h-screen"
+      className="min-w-screen h-[90vh]"
     >
       {" "}
-      <div className="max-w-4xl mx-auto text-center flex flex-col justify-center items-center">
+      <div className="max-w-4xl  mx-auto text-center flex flex-col justify-center items-center">
         {isStarting && (
           <div className="flex flex-col items-center mt-40 px-8">
             <h1 className="font-johnsonDisplay font-bold text-7xl leading-[110px] tracking-[0.15px] text-center align-middle">
