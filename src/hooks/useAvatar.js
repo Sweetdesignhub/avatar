@@ -74,6 +74,14 @@ const useAvatar = ({
   const speakNext = useCallback(
     (text, endingSilenceMs = 0, skipUpdatingChatHistory = false) => {
       return new Promise((resolve, reject) => {
+        if (!avatarSynthesizer.current) {
+          console.error("avatarSynthesizer is null, cannot speak");
+          setErrorMessage("Speech synthesizer not initialized.");
+          setIsSpeaking(false);
+          reject(new Error("avatarSynthesizer is null"));
+          return;
+        }
+
         let ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='en-US'><voice name='${
           sttTtsConfig.ttsVoice
         }'><mstts:ttsembedding speakerProfileId='${
@@ -91,6 +99,7 @@ const useAvatar = ({
           )}<break time='${endingSilenceMs}ms' /></mstts:ttsembedding></voice></speak>`;
         }
 
+        console.log("speakNext called for:", text, "isSpeaking:", isSpeaking, "avatarSynthesizer state:", avatarSynthesizer.current ? "initialized" : "null");
         setIsSpeaking(true);
         speakingText.current = text;
         lastSpeakTime.current = new Date();
@@ -110,9 +119,11 @@ const useAvatar = ({
             speakingText.current = "";
             if (spokenTextQueue.current.length > 0) {
               const nextText = spokenTextQueue.current.shift();
+              console.log("Processing next in spokenTextQueue:", nextText);
               speakNext(nextText).then(resolve).catch(reject);
             } else {
               setIsSpeaking(false);
+              console.log("speakNext completed, isSpeaking set to false");
               const textarea = document.getElementById("userMessageBox");
               if (textarea) textarea.value = "";
               resolve();
@@ -122,11 +133,13 @@ const useAvatar = ({
             console.error(`Error speaking SSML: ${error}`);
             setErrorMessage("Error synthesizing speech.");
             speakingText.current = "";
+            setIsSpeaking(false);
+            console.log("speakNext error, isSpeaking set to false");
             if (spokenTextQueue.current.length > 0) {
               const nextText = spokenTextQueue.current.shift();
+              console.log("Processing next in spokenTextQueue after error:", nextText);
               speakNext(nextText).then(resolve).catch(reject);
             } else {
-              setIsSpeaking(false);
               const textarea = document.getElementById("userMessageBox");
               if (textarea) textarea.value = "";
               reject(error);
@@ -134,13 +147,15 @@ const useAvatar = ({
           });
       });
     },
-    [sttTtsConfig]
+    [sttTtsConfig, isSpeaking]
   );
 
   const speak = useCallback(
     (text, endingSilenceMs = 0) => {
+      console.log("speak called for:", text, "isSpeaking:", isSpeaking);
       if (isSpeaking) {
         spokenTextQueue.current.push(text);
+        console.log("Pushed to spokenTextQueue:", spokenTextQueue.current);
         return new Promise((resolve) => {
           const checkQueue = () => {
             if (!isSpeaking && spokenTextQueue.current[0] === text) {
@@ -158,36 +173,55 @@ const useAvatar = ({
   );
 
   const processResponseQueue = useCallback(async () => {
+    console.log("processResponseQueue called, queue:", responseQueue.current, "isProcessingQueue:", isProcessingQueue.current);
     if (isProcessingQueue.current || responseQueue.current.length === 0) {
+      console.log("processResponseQueue skipped due to isProcessingQueue or empty queue");
       return;
     }
     isProcessingQueue.current = true;
     const response = responseQueue.current.shift();
+    console.log("Processing response:", response);
+
     if (messageTimeoutRef.current) {
       clearTimeout(messageTimeoutRef.current);
       messageTimeoutRef.current = null;
+      console.log("Cleared messageTimeoutRef");
     }
 
-    // Update UI with the current response before speaking
-    setAssistantMessages(
-      `<div class="flex justify-start mb-2"><div class="text-[#000000] px-6 py-5 rounded-3xl max-w-[90%] shadow-sm text-xl leading-relaxed font-bold">${response.replace(
+    // Append response to assistantMessages to show multiple responses
+    setAssistantMessages((prev) => {
+      const newMessage = `<div class="flex justify-start mb-2"><div class="text-[#000000] px-6 py-5 rounded-3xl max-w-[90%] shadow-sm text-xl leading-relaxed font-bold">${response.replace(
         /\n/g,
         ""
-      )}</div></div>`
-    );
+      )}</div></div>`;
+      return prev + newMessage;
+    });
+    console.log("Appended to assistantMessages:", response);
     const assistantMessagesDiv = document.getElementById("assistantMessages");
     if (assistantMessagesDiv) assistantMessagesDiv.scrollTop = 0;
 
     // Wait for the speech to complete
-    await speak(response);
+    try {
+      await speak(response);
+      console.log("Speech completed for:", response);
+    } catch (error) {
+      console.error("Speech error in processResponseQueue:", error);
+      setErrorMessage("Failed to synthesize speech.");
+    }
+
+    // Add a small delay before processing the next response
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     isProcessingQueue.current = false;
+    console.log("isProcessingQueue set to false, remaining queue:", responseQueue.current);
     if (responseQueue.current.length > 0) {
+      console.log("Processing next response in queue");
       processResponseQueue();
     } else {
       // Clear messages 5.5 seconds after the last speech
       messageTimeoutRef.current = setTimeout(() => {
         setAssistantMessages("");
+        console.log("Cleared assistantMessages after 5.5s timeout");
       }, 5500);
     }
   }, [speak]);
@@ -560,33 +594,43 @@ const useAvatar = ({
   }, [prompt]);
 
   const stopSpeaking = useCallback(() => {
-    console.log("Stop speaking clicked");
+    console.log("Stop speaking clicked, isSpeaking:", isSpeaking, "avatarSynthesizer state:", avatarSynthesizer.current ? "initialized" : "null");
     lastInteractionTime.current = new Date();
     spokenTextQueue.current = [];
     responseQueue.current = [];
     if (messageTimeoutRef.current) {
       clearTimeout(messageTimeoutRef.current);
       messageTimeoutRef.current = null;
+      console.log("Cleared messageTimeoutRef in stopSpeaking");
     }
     setAssistantMessages("");
-    avatarSynthesizer.current
+    console.log("Cleared assistantMessages in stopSpeaking");
+    if (!avatarSynthesizer.current) {
+      console.warn("avatarSynthesizer is null, cannot stop speaking");
+      setIsSpeaking(false);
+      return Promise.resolve();
+    }
+    return avatarSynthesizer.current
       .stopSpeakingAsync()
       .then(() => {
         setIsSpeaking(false);
-        console.log("Stop speaking request sent.");
+        console.log("Stop speaking request sent, isSpeaking set to false");
         const textarea = document.getElementById("userMessageBox");
         if (textarea) textarea.value = "";
       })
       .catch((error) => {
         console.error(`Error stopping speaking: ${error}`);
         setErrorMessage("Error stopping speech.");
+        setIsSpeaking(false);
+        console.log("Stop speaking error, isSpeaking set to false");
         const textarea = document.getElementById("userMessageBox");
         if (textarea) textarea.value = "";
+        throw error;
       });
-  }, []);
+  }, [isSpeaking]);
 
   const handleUserQuery = useCallback(
-    (userQuery, userQueryHTML, imgUrlPath) => {
+    async (userQuery, userQueryHTML, imgUrlPath) => {
       console.log("Handling user query:", userQuery);
       lastInteractionTime.current = new Date();
       let contentMessage = userQuery;
@@ -605,14 +649,17 @@ const useAvatar = ({
       if (chatHistoryDiv) chatHistoryDiv.scrollTop = 0;
 
       if (isSpeaking) {
-        stopSpeaking();
+        await stopSpeaking();
       }
 
-      // Clear any existing timeout to prevent old messages from clearing
+      // Clear any existing timeout and UI
       if (messageTimeoutRef.current) {
         clearTimeout(messageTimeoutRef.current);
         messageTimeoutRef.current = null;
+        console.log("Cleared messageTimeoutRef in handleUserQuery");
       }
+      setAssistantMessages("");
+      console.log("Cleared assistantMessages in handleUserQuery");
 
       if (dataSources.current.length > 0 && enableQuickReply) {
         speak(getQuickReply(), 2000);
@@ -656,11 +703,14 @@ const useAvatar = ({
               if (done) {
                 if (assistantReply) {
                   responseQueue.current.push(assistantReply);
-                  processResponseQueue();
+                  console.log("Pushed to responseQueue:", assistantReply, "Queue:", responseQueue.current);
                   messages.current.push({
                     role: "assistant",
                     content: assistantReply,
                   });
+                  // Force processResponseQueue to ensure new response is handled
+                  isProcessingQueue.current = false;
+                  processResponseQueue();
                 }
                 if (dataSources.current.length > 0 && toolContent) {
                   messages.current.push({ role: "tool", content: toolContent });

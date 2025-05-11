@@ -732,7 +732,7 @@ const MessageBox = ({
               className="overflow-y-auto p-2 items-end rounded-lg h-full overflow-scroll"
               style={{
                 scrollbarWidth: "thin",
-                display: sessionActive ? "flex" : "none",
+                display: sessionActive ? "block" : "none",
               }}
             >
               <div id="assistantMessages" className="assistant-content">
