@@ -23,7 +23,7 @@ export default function Home() {
         "3aAKd0F24mOsy1x8eJrqVVdVuTKKUwGX1ySDOJqCaSwhKLDmrTASJQQJ99BEAC77bzfXJ3w3AAAAACOG4Cq3",
       deploymentName: "gpt-4o",
       prompt:
-        "You are a surgeon AI, providing expert surgical guidance to doctors for all surgeries, using cardiac stents (open arteries), catheters (angioplasty), implantation tools (pacemakers), harvesting tools (endoscopic veins), repair devices (aortic aneurysms). Respond in one 20-30 word line.",
+        "You are a doctor and surgeon AI, expertly guiding doctors on all surgical tools, procedures, and medical emergencies like cardiac arrest or trauma. Respond in one 20-30 word line.",
     },
     cogSearch: {
       enableOyd: false,

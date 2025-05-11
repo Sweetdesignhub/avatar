@@ -620,7 +620,8 @@ const MessageBox = ({
 
   useEffect(() => {
     console.log("assistantMessages received:", assistantMessages);
-  }, [assistantMessages]);
+    console.log("Loading state:", { isLoading, startingAvatar });
+  }, [assistantMessages, isLoading, startingAvatar]);
 
   console.log("Session Active:", sessionActive, "Is Loading:", isLoading);
 
@@ -689,11 +690,31 @@ const MessageBox = ({
           .assistant-content {
             min-height: 20px; /* Ensure container is visible */
           }
+          .loading-overlay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.3);
+            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+            z-index: 50;
+          }
+          .blurred-content {
+            filter: blur(8px);
+            -webkit-filter: blur(8px);
+            transition: filter 0.3s ease;
+          }
         `}
       </style>
-      <div className="w-[1500px] mx-auto flex flex-col items-center px-4 min-h-[100px] max-h-[90vh] overflow-auto bg-transparent">
+      <div className={`w-[1500px] mx-auto flex flex-col items-center px-4 min-h-[100px] max-h-[90vh] overflow-auto bg-transparent ${isLoading && !startingAvatar ? 'blurred-content' : ''}`}>
         {isLoading && !startingAvatar && (
-          <div className="flex justify-center items-center mb-4 max-w-4xl">
+          <div className="loading-overlay">
             <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-red-600"></div>
           </div>
         )}
