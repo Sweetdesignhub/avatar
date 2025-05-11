@@ -832,7 +832,7 @@ import Home from "./pages/Home";
 function App() {
   return (
     <div
-      className="min-w-screen bg-cover bg-center"
+      className="min-w-screen bg-cover bg-center max-h-[100vh] overflow-hidden"
       style={{ backgroundImage: "url('/Background.jpg')" }}
     >
       <Navbar />

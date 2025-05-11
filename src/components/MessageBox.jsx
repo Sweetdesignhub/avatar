@@ -581,7 +581,7 @@ const MessageBox = ({
   isSpeaking,
   onStartingChange,
   setTextareaRef,
-  forwardRefToGrandparent
+  forwardRefToGrandparent,
 }) => {
   const textareaRef = useRef(null);
   const [starting, setStarting] = useState(true);
@@ -620,10 +620,11 @@ const MessageBox = ({
 
   useEffect(() => {
     console.log("assistantMessages received:", assistantMessages);
+    console.log("Number of messages:", assistantMessages.length);
     console.log("Loading state:", { isLoading, startingAvatar });
   }, [assistantMessages, isLoading, startingAvatar]);
 
-  console.log("Session Active:", sessionActive, "Is Loading:", isLoading);
+  // console.log("Session Active:", sessionActive, "Is Loading:", isLoading);
 
   const handleKeyUp = useCallback(
     (e) => {
@@ -712,19 +713,26 @@ const MessageBox = ({
           }
         `}
       </style>
-      <div className={`w-[1500px] mx-auto flex flex-col items-center px-4 min-h-[100px] max-h-[90vh] overflow-auto bg-transparent ${isLoading && !startingAvatar ? 'blurred-content' : ''}`}>
+      <div
+        className={`w-[1500px] mx-auto flex flex-col items-center px-4 min-h-[100px] max-h-[90vh] overflow-auto bg-transparent ${
+          isLoading && !startingAvatar ? "blurred-content" : ""
+        }`}
+      >
         {isLoading && !startingAvatar && (
           <div className="loading-overlay">
             <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-red-600"></div>
           </div>
         )}
         {!startingAvatar && (
-          <div className="grid grid-cols-[auto,450px] items-end mb-4 max-w-4xl w-full" style={{ background: 'transparent', minHeight: '300px' }}>
+          <div
+            className="grid grid-cols-[auto,450px] items-end mb-4 max-w-4xl w-full h-[40vh]"
+            style={{ background: "transparent", minHeight: "300px" }}
+          >
             <div
-              className="overflow-y-auto p-2 rounded-lg"
-              style={{ 
+              className="overflow-y-auto p-2 items-end rounded-lg h-full overflow-scroll"
+              style={{
                 scrollbarWidth: "thin",
-                display: sessionActive ? 'block' : 'none'
+                display: sessionActive ? "flex" : "none",
               }}
             >
               <div id="assistantMessages" className="assistant-content">
@@ -745,7 +753,10 @@ const MessageBox = ({
               </div>
             </div>
 
-            <div className="flex items-end" style={{ zIndex: 10, background: 'transparent' }}>
+            <div
+              className="flex items-end h-full justify-center"
+              style={{ zIndex: 10, background: "transparent" }}
+            >
               <div
                 id="localVideo"
                 className={`${
@@ -757,17 +768,22 @@ const MessageBox = ({
                   autoPlay
                   loop
                   muted
-                  style={{ width: '450px', height: '300px', zIndex: 5, background: 'transparent' }}
+                  style={{
+                    width: "450px",
+                    height: "300px",
+                    zIndex: 5,
+                    background: "transparent",
+                  }}
                 ></video>
               </div>
               <div
                 id="remoteVideo"
-                style={{ 
-                  width: '450px', 
-                  height: '300px', 
-                  zIndex: 10, 
-                  background: 'transparent',
-                  display: isLoading || !sessionActive ? 'none' : 'block'
+                style={{
+                  width: "450px",
+                  height: "300px",
+                  zIndex: 10,
+                  background: "transparent",
+                  display: isLoading || !sessionActive ? "none" : "block",
                 }}
               ></div>
               <div
@@ -779,8 +795,8 @@ const MessageBox = ({
                   textShadow:
                     "-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000",
                   zIndex: 30,
-                  display: isLoading || !sessionActive ? 'none' : 'block',
-                  background: 'transparent'
+                  display: isLoading || !sessionActive ? "none" : "block",
+                  background: "transparent",
                 }}
               ></div>
             </div>
@@ -828,9 +844,15 @@ const MessageBox = ({
                   ? "bg-[#EB1700] hover:bg-[#c91400] text-white"
                   : "bg-transparent text-gray-500"
               } disabled:opacity-50 rounded-full p-2 my-2 w-40 h-10 flex items-center justify-center border border-gray-200`}
-              title={sessionActive && !useLocalVideoForIdle ? "Stop Training" : "Start Training"}
+              title={
+                sessionActive && !useLocalVideoForIdle
+                  ? "Stop Training"
+                  : "Start Training"
+              }
             >
-              {sessionActive && !useLocalVideoForIdle ? "Stop Training" : "Start Training"}
+              {sessionActive && !useLocalVideoForIdle
+                ? "Stop Training"
+                : "Start Training"}
             </button>
           </div>
         </div>

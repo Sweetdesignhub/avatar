@@ -34,7 +34,7 @@ const AvatarChat = ({ config, onStartingChange }) => {
   });
 
   const handleStartingChange = (isStarting) => {
-    console.log("Starting state in grandchild:", isStarting);
+    // console.log("Starting state in grandchild:", isStarting);
     onStartingChange?.(isStarting); // forward to parent
   };
   return (

@@ -2,11 +2,10 @@ import { FaSearch, FaPlus, FaBook, FaAward, FaChartLine } from "react-icons/fa";
 
 export default function Navbar() {
   return (
-    <nav className="bg-white border-b border-gray-200 font-johnsonText">
-      <div className="max-w-full mx-auto px-4 py-3 flex items-center">
+    <nav className="h-[8vh] bg-white border-b border-gray-200 font-johnsonText">
+      <div className="max-w-full mx-auto px-4 py-3 flex items-center h-full">
         {/* Logo */}
         <div className="flex items-center mr-4">
-          {/* <span className="text-red-600 font-bold text-lg">J&J</span> */}
           <span className="text-lg font-medium">
             <span className="text-gray-800">Med</span>
             <span className="text-[#EB1700]">Spec</span>
@@ -60,3 +59,4 @@ export default function Navbar() {
     </nav>
   );
 }
+

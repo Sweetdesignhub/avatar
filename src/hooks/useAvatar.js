@@ -34,7 +34,9 @@ const useAvatar = ({
   const lastSpeakTime = useRef(null);
   const retryCount = useRef(0);
   const maxRetries = 3;
-  const messageTimeoutRef = useRef(null); // Ref to store timeout ID
+  const messageTimeoutRef = useRef(null);
+  const responseQueue = useRef([]);
+  const isProcessingQueue = useRef(false);
 
   const sentenceLevelPunctuations = [
     ".",
@@ -56,6 +58,139 @@ const useAvatar = ({
     "One moment, please.",
   ];
   const byodDocRegex = new RegExp(/\[doc(\d+)\]/g);
+
+  const htmlEncode = (text) => {
+    const entityMap = {
+      "&": "&",
+      "<": "<",
+      ">": ">",
+      '"': "",
+      "'": "'",
+      "/": "/",
+    };
+    return String(text).replace(/[&<>"'\/]/g, (match) => entityMap[match]);
+  };
+
+  const speakNext = useCallback(
+    (text, endingSilenceMs = 0, skipUpdatingChatHistory = false) => {
+      return new Promise((resolve, reject) => {
+        let ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='en-US'><voice name='${
+          sttTtsConfig.ttsVoice
+        }'><mstts:ttsembedding speakerProfileId='${
+          sttTtsConfig.personalVoiceSpeakerProfileID
+        }'><mstts:leadingsilence-exact value='0'/>${htmlEncode(
+          text
+        )}</mstts:ttsembedding></voice></speak>`;
+        if (endingSilenceMs > 0) {
+          ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='en-US'><voice name='${
+            sttTtsConfig.ttsVoice
+          }'><mstts:ttsembedding speakerProfileId='${
+            sttTtsConfig.personalVoiceSpeakerProfileID
+          }'><mstts:leadingsilence-exact value='0'/>${htmlEncode(
+            text
+          )}<break time='${endingSilenceMs}ms' /></mstts:ttsembedding></voice></speak>`;
+        }
+
+        setIsSpeaking(true);
+        speakingText.current = text;
+        lastSpeakTime.current = new Date();
+        avatarSynthesizer.current
+          .speakSsmlAsync(ssml)
+          .then((result) => {
+            if (
+              result.reason === SpeechSDK.ResultReason.SynthesizingAudioCompleted
+            ) {
+              console.log(
+                `Speech synthesized for text [${text}]. Result ID: ${result.resultId}`
+              );
+            } else {
+              console.error(`Error speaking SSML. Result ID: ${result.resultId}`);
+              setErrorMessage("Failed to synthesize speech.");
+            }
+            speakingText.current = "";
+            if (spokenTextQueue.current.length > 0) {
+              const nextText = spokenTextQueue.current.shift();
+              speakNext(nextText).then(resolve).catch(reject);
+            } else {
+              setIsSpeaking(false);
+              const textarea = document.getElementById("userMessageBox");
+              if (textarea) textarea.value = "";
+              resolve();
+            }
+          })
+          .catch((error) => {
+            console.error(`Error speaking SSML: ${error}`);
+            setErrorMessage("Error synthesizing speech.");
+            speakingText.current = "";
+            if (spokenTextQueue.current.length > 0) {
+              const nextText = spokenTextQueue.current.shift();
+              speakNext(nextText).then(resolve).catch(reject);
+            } else {
+              setIsSpeaking(false);
+              const textarea = document.getElementById("userMessageBox");
+              if (textarea) textarea.value = "";
+              reject(error);
+            }
+          });
+      });
+    },
+    [sttTtsConfig]
+  );
+
+  const speak = useCallback(
+    (text, endingSilenceMs = 0) => {
+      if (isSpeaking) {
+        spokenTextQueue.current.push(text);
+        return new Promise((resolve) => {
+          const checkQueue = () => {
+            if (!isSpeaking && spokenTextQueue.current[0] === text) {
+              resolve(speakNext(text, endingSilenceMs));
+            } else {
+              setTimeout(checkQueue, 100);
+            }
+          };
+          checkQueue();
+        });
+      }
+      return speakNext(text, endingSilenceMs);
+    },
+    [isSpeaking, speakNext]
+  );
+
+  const processResponseQueue = useCallback(async () => {
+    if (isProcessingQueue.current || responseQueue.current.length === 0) {
+      return;
+    }
+    isProcessingQueue.current = true;
+    const response = responseQueue.current.shift();
+    if (messageTimeoutRef.current) {
+      clearTimeout(messageTimeoutRef.current);
+      messageTimeoutRef.current = null;
+    }
+
+    // Update UI with the current response before speaking
+    setAssistantMessages(
+      `<div class="flex justify-start mb-2"><div class="text-[#000000] px-6 py-5 rounded-3xl max-w-[90%] shadow-sm text-xl leading-relaxed font-bold">${response.replace(
+        /\n/g,
+        ""
+      )}</div></div>`
+    );
+    const assistantMessagesDiv = document.getElementById("assistantMessages");
+    if (assistantMessagesDiv) assistantMessagesDiv.scrollTop = 0;
+
+    // Wait for the speech to complete
+    await speak(response);
+
+    isProcessingQueue.current = false;
+    if (responseQueue.current.length > 0) {
+      processResponseQueue();
+    } else {
+      // Clear messages 5.5 seconds after the last speech
+      messageTimeoutRef.current = setTimeout(() => {
+        setAssistantMessages("");
+      }, 5500);
+    }
+  }, [speak]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -378,7 +513,7 @@ const useAvatar = ({
         .then((r) => {
           if (r.reason === SpeechSDK.ResultReason.SynthesizingAudioCompleted) {
             console.log(`Avatar started. Result ID: ${r.resultId}`);
-            retryCount.current = 0; // Reset retry count on success
+            retryCount.current = 0;
             setSessionActive(true);
           } else {
             console.error(`Unable to start avatar. Result ID: ${r.resultId}`);
@@ -424,116 +559,16 @@ const useAvatar = ({
     }
   }, [prompt]);
 
-  const htmlEncode = (text) => {
-    const entityMap = {
-      "&": "&",
-      "<": "<",
-      ">": ">",
-      '"': "",
-      "'": "'",
-      "/": "/",
-    };
-    return String(text).replace(/[&<>"'\/]/g, (match) => entityMap[match]);
-  };
-
-  const speak = useCallback(
-    (text, endingSilenceMs = 0) => {
-      if (isSpeaking) {
-        spokenTextQueue.current.push(text);
-        return;
-      }
-      speakNext(text, endingSilenceMs);
-    },
-    [isSpeaking]
-  );
-
-  const speakNext = useCallback(
-    (text, endingSilenceMs = 0, skipUpdatingChatHistory = false) => {
-      let ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='en-US'><voice name='${
-        sttTtsConfig.ttsVoice
-      }'><mstts:ttsembedding speakerProfileId='${
-        sttTtsConfig.personalVoiceSpeakerProfileID
-      }'><mstts:leadingsilence-exact value='0'/>${htmlEncode(
-        text
-      )}</mstts:ttsembedding></voice></speak>`;
-      if (endingSilenceMs > 0) {
-        ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='en-US'><voice name='${
-          sttTtsConfig.ttsVoice
-        }'><mstts:ttsembedding speakerProfileId='${
-          sttTtsConfig.personalVoiceSpeakerProfileID
-        }'><mstts:leadingsilence-exact value='0'/>${htmlEncode(
-          text
-        )}<break time='${endingSilenceMs}ms' /></mstts:ttsembedding></voice></speak>`;
-      }
-
-      if (enableDisplayTextAlignmentWithSpeech && !skipUpdatingChatHistory) {
-        // Clear any existing timeout
-        if (messageTimeoutRef.current) {
-          clearTimeout(messageTimeoutRef.current);
-        }
-        // Set the latest message
-        setAssistantMessages(
-          `<div class="flex justify-start mb-2"><div class="text-[#000000] px-6 py-5 rounded-3xl max-w-[90%] shadow-sm text-xl leading-relaxed font-bold">${text.replace(
-            /\n/g,
-            ""
-          )}</div></div>`
-        );
-        const assistantMessagesDiv = document.getElementById("assistantMessages");
-        if (assistantMessagesDiv) assistantMessagesDiv.scrollTop = 0;
-      }
-
-      setIsSpeaking(true);
-      speakingText.current = text;
-      lastSpeakTime.current = new Date();
-      avatarSynthesizer.current
-        .speakSsmlAsync(ssml)
-        .then((result) => {
-          if (
-            result.reason === SpeechSDK.ResultReason.SynthesizingAudioCompleted
-          ) {
-            console.log(
-              `Speech synthesized for text [${text}]. Result ID: ${result.resultId}`
-            );
-            // Set timeout to clear message after 2 seconds, only after speech completes
-            if (enableDisplayTextAlignmentWithSpeech && !skipUpdatingChatHistory) {
-              messageTimeoutRef.current = setTimeout(() => {
-                setAssistantMessages("");
-                messageTimeoutRef.current = null;
-              }, 5000);
-            }
-          } else {
-            console.error(`Error speaking SSML. Result ID: ${result.resultId}`);
-            setErrorMessage("Failed to synthesize speech.");
-          }
-          speakingText.current = "";
-          if (spokenTextQueue.current.length > 0) {
-            speakNext(spokenTextQueue.current.shift());
-          } else {
-            setIsSpeaking(false);
-            const textarea = document.getElementById("userMessageBox");
-            if (textarea) textarea.value = "";
-          }
-        })
-        .catch((error) => {
-          console.error(`Error speaking SSML: ${error}`);
-          setErrorMessage("Error synthesizing speech.");
-          speakingText.current = "";
-          if (spokenTextQueue.current.length > 0) {
-            speakNext(spokenTextQueue.current.shift());
-          } else {
-            setIsSpeaking(false);
-            const textarea = document.getElementById("userMessageBox");
-            if (textarea) textarea.value = "";
-          }
-        });
-    },
-    [sttTtsConfig]
-  );
-
   const stopSpeaking = useCallback(() => {
     console.log("Stop speaking clicked");
     lastInteractionTime.current = new Date();
     spokenTextQueue.current = [];
+    responseQueue.current = [];
+    if (messageTimeoutRef.current) {
+      clearTimeout(messageTimeoutRef.current);
+      messageTimeoutRef.current = null;
+    }
+    setAssistantMessages("");
     avatarSynthesizer.current
       .stopSpeakingAsync()
       .then(() => {
@@ -569,15 +604,14 @@ const useAvatar = ({
       const chatHistoryDiv = document.getElementById("chatHistory");
       if (chatHistoryDiv) chatHistoryDiv.scrollTop = 0;
 
-      // Clear previous assistant message and timeout immediately
+      if (isSpeaking) {
+        stopSpeaking();
+      }
+
+      // Clear any existing timeout to prevent old messages from clearing
       if (messageTimeoutRef.current) {
         clearTimeout(messageTimeoutRef.current);
         messageTimeoutRef.current = null;
-      }
-      setAssistantMessages("");
-
-      if (isSpeaking) {
-        stopSpeaking();
       }
 
       if (dataSources.current.length > 0 && enableQuickReply) {
@@ -597,8 +631,6 @@ const useAvatar = ({
 
       let assistantReply = "";
       let toolContent = "";
-      let spokenSentence = "";
-      let displaySentence = "";
 
       fetch(url, {
         method: "POST",
@@ -622,18 +654,16 @@ const useAvatar = ({
           const read = (previousChunkString = "") => {
             return reader.read().then(({ value, done }) => {
               if (done) {
-                if (spokenSentence) {
-                  speak(spokenSentence);
-                  spokenSentence = "";
-                }
-                if (dataSources.current.length > 0 && toolContent) {
-                  messages.current.push({ role: "tool", content: toolContent });
-                }
                 if (assistantReply) {
+                  responseQueue.current.push(assistantReply);
+                  processResponseQueue();
                   messages.current.push({
                     role: "assistant",
                     content: assistantReply,
                   });
+                }
+                if (dataSources.current.length > 0 && toolContent) {
+                  messages.current.push({ role: "tool", content: toolContent });
                 }
                 console.log(
                   "Stream completed. Final assistant reply:",
@@ -671,45 +701,7 @@ const useAvatar = ({
                     }
                     if (responseToken) {
                       assistantReply += responseToken;
-                      displaySentence += responseToken;
-                      spokenSentence += responseToken;
-                      if (responseToken === "\n" || responseToken === "\n\n") {
-                        speak(spokenSentence);
-                        spokenSentence = "";
-                      } else {
-                        responseToken = responseToken.replace(/\n/g, "");
-                        if (
-                          responseToken.length === 1 ||
-                          responseToken.length === 2
-                        ) {
-                          for (const punctuation of sentenceLevelPunctuations) {
-                            if (responseToken.startsWith(punctuation)) {
-                              speak(spokenSentence);
-                              spokenSentence = "";
-                              break;
-                            }
-                          }
-                        }
-                      }
-                    }
-
-                    if (!enableDisplayTextAlignmentWithSpeech) {
-                      setAssistantMessages(
-                        (prev) =>
-                          `
-                  <div class="flex justify-start mb-2">
-                    <div class="text-[#000000] px-6 py-5 rounded-3xl max-w-[90%] shadow-sm text-xl leading-relaxed font-bold">
-                      ${displaySentence.replace(/\n/g, "")}
-                    </div>
-                  </div>
-                  ${prev}
-                `
-                      );
-                      const assistantMessagesDiv =
-                        document.getElementById("assistantMessages");
-                      if (assistantMessagesDiv)
-                        assistantMessagesDiv.scrollTop = 0;
-                      displaySentence = "";
+                      console.log("Streamed token:", responseToken);
                     }
                   } catch (error) {
                     console.error(
@@ -722,10 +714,6 @@ const useAvatar = ({
               return read();
             });
           };
-          setAssistantMessages(
-            (prev) =>
-              `<div class="flex justify-start mb-2"><div class="text-[#000000] px-6 py-5 rounded-3xl max-w-[90%] shadow-sm text-xl leading-relaxed font-bold"></div></div>${prev}`
-          );
           return read();
         })
         .catch((error) => {
@@ -783,8 +771,8 @@ const useAvatar = ({
       setSessionActive(true);
       return;
     }
-    retryCount.current = 0; // Reset retry count
-    connectAvatar(() => connectAvatar(() => connectAvatar())); // Pass retry callback
+    retryCount.current = 0;
+    connectAvatar(() => connectAvatar(() => connectAvatar()));
   }, [useLocalVideoForIdle, connectAvatar]);
 
   const stopSession = useCallback(() => {
@@ -792,7 +780,7 @@ const useAvatar = ({
     lastInteractionTime.current = new Date();
     disconnectAvatar();
     document.getElementById("localVideo").hidden = true;
-    retryCount.current = 0; // Reset retry count
+    retryCount.current = 0;
   }, [disconnectAvatar]);
 
   const clearChatHistory = useCallback(() => {
@@ -825,7 +813,7 @@ const useAvatar = ({
       console.log("Microphone permission granted");
 
       if (useLocalVideoForIdle && !sessionActive) {
-        retryCount.current = 0; // Reset retry count
+        retryCount.current = 0;
         connectAvatar(() => connectAvatar(() => connectAvatar()));
         setTimeout(() => {
           const audioPlayer = document.getElementById("audioPlayer");

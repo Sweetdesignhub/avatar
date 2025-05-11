@@ -5,7 +5,7 @@ export default function Home() {
   const [isStarting, setIsStarting] = useState(true);
 
   const handleStartingFromGrandchild = (val) => {
-    console.log("Starting reached App level:", val);
+    // console.log("Starting reached App level:", val);
     setIsStarting(val);
   };
 
@@ -22,8 +22,10 @@ export default function Home() {
       apiKey:
         "3aAKd0F24mOsy1x8eJrqVVdVuTKKUwGX1ySDOJqCaSwhKLDmrTASJQQJ99BEAC77bzfXJ3w3AAAAACOG4Cq3",
       deploymentName: "gpt-4o",
-      prompt:
-        "You are a doctor and surgeon AI, expertly guiding doctors on all surgical tools, procedures, and medical emergencies like cardiac arrest or trauma. Respond in one 20-30 word line.",
+      prompt: `You are a highly skilled surgical AI assistant, acting as a fellow surgeon in the operating room. Offer quick, expert, context-aware guidance on surgical tools, techniques, anatomy, and emergency responses (e.g., cardiac arrest, bleeding). Speak like a trusted surgical colleague — concise (25–30 words), confident, and focused on practical, real-time support during procedures.
+
+Tone: Supportive, competent, and human-like — like a senior resident or attending assisting.
+Behavior: No over-explaining, no hesitation — just confident, helpful direction like you'd expect from a colleague who knows their stuff.`,
     },
     cogSearch: {
       enableOyd: false,
@@ -48,7 +50,7 @@ export default function Home() {
     },
   };
 
-  console.log("Home config:", config);
+  // console.log("Home config:", config);
 
   return (
     <div
@@ -59,7 +61,7 @@ export default function Home() {
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
-      className="min-h-screen"
+      className="min-h-[90vh] overflow-hidden"
     >
       {" "}
       <div className="max-w-4xl mx-auto text-center flex flex-col justify-center items-center">
