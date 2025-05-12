@@ -35,6 +35,7 @@ const useAvatar = ({
   const retryCount = useRef(0);
   const maxRetries = 3;
   const messageTimeoutRef = useRef(null);
+  const errorTimeoutRef = useRef(null);
   const responseQueue = useRef([]);
   const isProcessingQueue = useRef(false);
 
@@ -71,12 +72,37 @@ const useAvatar = ({
     return String(text).replace(/[&<>"'\/]/g, (match) => entityMap[match]);
   };
 
+  // Wrapper to set error message and clear after 5 seconds, refresh for specific error
+  const setErrorMessageWithTimeout = useCallback((message) => {
+    if (errorTimeoutRef.current) {
+      clearTimeout(errorTimeoutRef.current);
+      errorTimeoutRef.current = null;
+      console.log("Cleared errorTimeoutRef");
+    }
+    setErrorMessage(message);
+    if (message) {
+      console.log("Setting error message:", message, "with 5s timeout");
+      errorTimeoutRef.current = setTimeout(() => {
+        setErrorMessage("");
+        console.log("Cleared errorMessage after 5s timeout");
+        // Refresh page for specific error
+        if (
+          message ===
+          "Failed to connect to the avatar after multiple attempts. Please check your network/refresh or try again later."
+        ) {
+          console.log("Refreshing page due to connection failure");
+          window.location.reload();
+        }
+      }, 5000);
+    }
+  }, []);
+
   const speakNext = useCallback(
     (text, endingSilenceMs = 0, skipUpdatingChatHistory = false) => {
       return new Promise((resolve, reject) => {
         if (!avatarSynthesizer.current) {
           console.error("avatarSynthesizer is null, cannot speak");
-          setErrorMessage("Speech synthesizer not initialized.");
+          setErrorMessageWithTimeout("Speech synthesizer not initialized.");
           setIsSpeaking(false);
           reject(new Error("avatarSynthesizer is null"));
           return;
@@ -114,7 +140,7 @@ const useAvatar = ({
               );
             } else {
               console.error(`Error speaking SSML. Result ID: ${result.resultId}`);
-              setErrorMessage("Failed to synthesize speech.");
+              setErrorMessageWithTimeout("Failed to synthesize speech.");
             }
             speakingText.current = "";
             if (spokenTextQueue.current.length > 0) {
@@ -131,7 +157,7 @@ const useAvatar = ({
           })
           .catch((error) => {
             console.error(`Error speaking SSML: ${error}`);
-            setErrorMessage("Error synthesizing speech.");
+            setErrorMessageWithTimeout("Error synthesizing speech.");
             speakingText.current = "";
             setIsSpeaking(false);
             console.log("speakNext error, isSpeaking set to false");
@@ -147,7 +173,7 @@ const useAvatar = ({
           });
       });
     },
-    [sttTtsConfig, isSpeaking]
+    [sttTtsConfig, isSpeaking, setErrorMessageWithTimeout]
   );
 
   const speak = useCallback(
@@ -194,11 +220,11 @@ const useAvatar = ({
         /\n/g,
         ""
       )}</div></div>`;
+      console.log("Appending to assistantMessages:", response);
       return prev + newMessage;
     });
-    console.log("Appended to assistantMessages:", response);
     const assistantMessagesDiv = document.getElementById("assistantMessages");
-    if (assistantMessagesDiv) assistantMessagesDiv.scrollTop = 0;
+    if (assistantMessagesDiv) assistantMessagesDiv.scrollTop = assistantMessagesDiv.scrollHeight;
 
     // Wait for the speech to complete
     try {
@@ -206,11 +232,11 @@ const useAvatar = ({
       console.log("Speech completed for:", response);
     } catch (error) {
       console.error("Speech error in processResponseQueue:", error);
-      setErrorMessage("Failed to synthesize speech.");
+      setErrorMessageWithTimeout("Failed to synthesize speech.");
     }
 
-    // Add a small delay before processing the next response
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Add a delay before processing the next response
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     isProcessingQueue.current = false;
     console.log("isProcessingQueue set to false, remaining queue:", responseQueue.current);
@@ -224,7 +250,7 @@ const useAvatar = ({
         console.log("Cleared assistantMessages after 5.5s timeout");
       }, 5500);
     }
-  }, [speak]);
+  }, [speak, setErrorMessageWithTimeout]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -292,10 +318,10 @@ const useAvatar = ({
 
   const connectAvatar = useCallback((retryCallback = () => {}) => {
     console.log(`Starting avatar connection (Attempt ${retryCount.current + 1}/${maxRetries})...`);
-    setErrorMessage(retryCount.current > 0 ? `Retrying connection... (Attempt ${retryCount.current + 1}/${maxRetries})` : "");
+    setErrorMessageWithTimeout(retryCount.current > 0 ? `Retrying connection... (Attempt ${retryCount.current + 1}/${maxRetries})` : "");
     
     if (speechConfig.apiKey === "") {
-      setErrorMessage("Please fill in the API key of your speech resource.");
+      setErrorMessageWithTimeout("Please fill in the API key of your speech resource.");
       retryCount.current = 0;
       return;
     }
@@ -303,7 +329,7 @@ const useAvatar = ({
       speechConfig.enablePrivateEndpoint &&
       speechConfig.privateEndpoint === ""
     ) {
-      setErrorMessage("Please fill in the Azure Speech endpoint.");
+      setErrorMessageWithTimeout("Please fill in the Azure Speech endpoint.");
       retryCount.current = 0;
       return;
     }
@@ -312,7 +338,7 @@ const useAvatar = ({
       openAIConfig.apiKey === "" ||
       openAIConfig.deploymentName === ""
     ) {
-      setErrorMessage(
+      setErrorMessageWithTimeout(
         "Please fill in the Azure OpenAI endpoint, API key, and deployment name."
       );
       retryCount.current = 0;
@@ -324,7 +350,7 @@ const useAvatar = ({
         cogSearchConfig.apiKey === "" ||
         cogSearchConfig.indexName === "")
     ) {
-      setErrorMessage(
+      setErrorMessageWithTimeout(
         "Please fill in the Azure Cognitive Search endpoint, API key, and index name."
       );
       retryCount.current = 0;
@@ -413,7 +439,7 @@ const useAvatar = ({
         } else {
           retryCount.current += 1;
           if (retryCount.current >= maxRetries) {
-            setErrorMessage(
+            setErrorMessageWithTimeout(
               "Failed to connect to the avatar after multiple attempts. Please check your network/refresh or try again later."
             );
             retryCount.current = 0;
@@ -436,7 +462,8 @@ const useAvatar = ({
     enableOyd,
     sttTtsConfig,
     avatarConfig,
-    disconnectAvatar
+    disconnectAvatar,
+    setErrorMessageWithTimeout
   ]);
 
   const setupWebRTC = useCallback(
@@ -456,7 +483,7 @@ const useAvatar = ({
         const remoteVideoDiv = document.getElementById("remoteVideo");
         if (!remoteVideoDiv) {
           console.error("remoteVideo div not found");
-          setErrorMessage("Video container not found in DOM.");
+          setErrorMessageWithTimeout("Video container not found in DOM.");
           return;
         }
         if (event.track.kind === "audio") {
@@ -524,7 +551,7 @@ const useAvatar = ({
         if (peerConnection.current.iceConnectionState === "failed") {
           retryCount.current += 1;
           if (retryCount.current >= maxRetries) {
-            setErrorMessage(
+            setErrorMessageWithTimeout(
               "Failed to connect to the avatar after multiple attempts. Please check your network/refresh or try again later."
             );
             retryCount.current = 0;
@@ -553,7 +580,7 @@ const useAvatar = ({
             console.error(`Unable to start avatar. Result ID: ${r.resultId}`);
             retryCount.current += 1;
             if (retryCount.current >= maxRetries) {
-              setErrorMessage(
+              setErrorMessageWithTimeout(
                 "Failed to connect to the avatar after multiple attempts. Please check your network/refresh or try again later."
               );
               retryCount.current = 0;
@@ -570,7 +597,7 @@ const useAvatar = ({
           console.error(`Avatar failed to start: ${error}`);
           retryCount.current += 1;
           if (retryCount.current >= maxRetries) {
-            setErrorMessage(
+            setErrorMessageWithTimeout(
               "Failed to connect to the avatar after multiple attempts. Please check your network/refresh or try again later."
             );
             retryCount.current = 0;
@@ -583,7 +610,7 @@ const useAvatar = ({
           }
         });
     },
-    [showSubtitles, disconnectAvatar]
+    [showSubtitles, disconnectAvatar, setErrorMessageWithTimeout]
   );
 
   const initMessages = useCallback(() => {
@@ -620,14 +647,14 @@ const useAvatar = ({
       })
       .catch((error) => {
         console.error(`Error stopping speaking: ${error}`);
-        setErrorMessage("Error stopping speech.");
+        setErrorMessageWithTimeout("Error stopping speech.");
         setIsSpeaking(false);
         console.log("Stop speaking error, isSpeaking set to false");
         const textarea = document.getElementById("userMessageBox");
         if (textarea) textarea.value = "";
         throw error;
       });
-  }, [isSpeaking]);
+  }, [isSpeaking, setErrorMessageWithTimeout]);
 
   const handleUserQuery = useCallback(
     async (userQuery, userQueryHTML, imgUrlPath) => {
@@ -692,7 +719,7 @@ const useAvatar = ({
             console.error(
               `Chat API response status: ${response.status} ${response.statusText}`
             );
-            setErrorMessage(
+            setErrorMessageWithTimeout(
               `Failed to connect to OpenAI API: ${response.status} ${response.statusText}`
             );
             return;
@@ -757,7 +784,7 @@ const useAvatar = ({
                     console.error(
                       `Error parsing response: ${error}, chunk: ${line}`
                     );
-                    setErrorMessage("Error processing API response.");
+                    setErrorMessageWithTimeout("Error processing API response.");
                   }
                 }
               });
@@ -768,10 +795,10 @@ const useAvatar = ({
         })
         .catch((error) => {
           console.error(`Fetch error: ${error}`);
-          setErrorMessage("Failed to connect to OpenAI API.");
+          setErrorMessageWithTimeout("Failed to connect to OpenAI API.");
         });
     },
-    [openAIConfig, isSpeaking, stopSpeaking, speak, enableOyd]
+    [openAIConfig, isSpeaking, stopSpeaking, speak, enableOyd, setErrorMessageWithTimeout]
   );
 
   const getQuickReply = () =>
@@ -852,7 +879,7 @@ const useAvatar = ({
         },
         (err) => {
           console.error(`Failed to stop recognition: ${err}`);
-          setErrorMessage("Failed to stop microphone.");
+          setErrorMessageWithTimeout("Failed to stop microphone.");
         }
       );
       return;
@@ -922,12 +949,12 @@ const useAvatar = ({
         },
         (err) => {
           console.error(`Failed to start recognition: ${err}`);
-          setErrorMessage("Failed to start microphone.");
+          setErrorMessageWithTimeout("Failed to start microphone.");
         }
       );
     } catch (err) {
       console.error(`Microphone permission error: ${err}`);
-      setErrorMessage("Microphone access denied.");
+      setErrorMessageWithTimeout("Microphone access denied.");
     }
   }, [
     useLocalVideoForIdle,
@@ -936,6 +963,7 @@ const useAvatar = ({
     connectAvatar,
     handleUserQuery,
     microphoneText,
+    setErrorMessageWithTimeout
   ]);
 
   return {

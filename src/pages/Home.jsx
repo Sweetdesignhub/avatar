@@ -61,7 +61,7 @@ Behavior: No over-explaining, no hesitation — just confident, helpful directio
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
-      className="min-h-[90vh] overflow-hidden"
+      className="min-h-[90vh] overflow-scroll"
     >
       {" "}
       <div className="max-w-4xl mx-auto text-center flex flex-col justify-center items-center">
