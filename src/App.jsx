@@ -832,7 +832,7 @@ import Home from "./pages/Home";
 function App() {
   return (
     <div
-      className="min-w-screen bg-cover bg-center max-h-[100vh] overflow-scroll"
+      className="min-w-screen min-h-screen bg-cover bg-center overflow-y-auto overflow-x-hidden"
       style={{ backgroundImage: "url('/Background.jpg')" }}
     >
       <Navbar />
@@ -843,5 +843,6 @@ function App() {
     </div>
   );
 }
+
 
 export default App;
