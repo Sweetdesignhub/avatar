@@ -1,15 +1,17 @@
+import { useNavigate } from "react-router-dom";
 import { FaSearch, FaPlus, FaBook, FaAward, FaChartLine } from "react-icons/fa";
 
 export default function Navbar() {
+  const navigate = useNavigate();
+
   return (
     <nav className="h-[8vh] bg-white border-b border-gray-200 font-johnsonText">
       <div className="max-w-full mx-auto px-4 py-3 flex items-center h-full">
         {/* Logo */}
         <div className="flex items-center mr-4">
-          <span className="text-lg font-medium">
-            <span className="text-gray-800">Med</span>
-            <span className="text-[#EB1700]">Spec</span>
-            <span className="text-gray-800">Mate</span>
+          <span className="text-xl">
+            <span className="text-[#EB1700] font-bold mr-1">Surgeon</span>
+            <span className="text-gray-800 font-bold">AI</span>
           </span>
         </div>
 
@@ -27,7 +29,7 @@ export default function Navbar() {
 
         {/* Buttons */}
         <button
-          onClick={() => window.location.reload()}
+          onClick={() => navigate("/home")}
           className="flex items-center border border-gray-300 text-gray-600 rounded-full px-3 py-1 text-sm mr-4 hover:bg-gray-100 transition"
         >
           <FaPlus className="mr-1" />
@@ -59,4 +61,3 @@ export default function Navbar() {
     </nav>
   );
 }
-

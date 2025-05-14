@@ -12,6 +12,9 @@ const useAvatar = ({
   autoReconnectAvatar,
   useLocalVideoForIdle,
   prompt,
+  showLoadingPopup,
+  showErrorPopup,
+  clearPopup,
 }) => {
   const [sessionActive, setSessionActive] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -19,6 +22,7 @@ const useAvatar = ({
   const [assistantMessages, setAssistantMessages] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [microphoneText, setMicrophoneText] = useState("Start Microphone");
+  const hasWelcomed = useRef(false); // Track if welcome message has been shown
 
   const speechRecognizer = useRef(null);
   const avatarSynthesizer = useRef(null);
@@ -40,16 +44,7 @@ const useAvatar = ({
   const isProcessingQueue = useRef(false);
 
   const sentenceLevelPunctuations = [
-    ".",
-    "?",
-    "!",
-    ":",
-    ";",
-    "。",
-    "？",
-    "！",
-    "：",
-    "；",
+    ".", "?", "!", ":", ";", "。", "？", "！", "：", "；",
   ];
   const enableDisplayTextAlignmentWithSpeech = true;
   const enableQuickReply = false;
@@ -72,7 +67,6 @@ const useAvatar = ({
     return String(text).replace(/[&<>"'\/]/g, (match) => entityMap[match]);
   };
 
-  // Wrapper to set error message and clear after 5 seconds, refresh for specific error
   const setErrorMessageWithTimeout = useCallback((message) => {
     if (errorTimeoutRef.current) {
       clearTimeout(errorTimeoutRef.current);
@@ -85,7 +79,6 @@ const useAvatar = ({
       errorTimeoutRef.current = setTimeout(() => {
         setErrorMessage("");
         console.log("Cleared errorMessage after 5s timeout");
-        // Refresh page for specific error
         if (
           message ===
           "Failed to connect to the avatar after multiple attempts. Please check your network/refresh or try again later."
@@ -214,7 +207,6 @@ const useAvatar = ({
       console.log("Cleared messageTimeoutRef");
     }
 
-    // Append response to assistantMessages to show multiple responses
     setAssistantMessages((prev) => {
       const newMessage = `<div class="flex justify-start mb-2"><div class="text-[#000000] px-6 py-5 rounded-3xl max-w-[90%] shadow-sm text-xl leading-relaxed font-bold">${response.replace(
         /\n/g,
@@ -226,7 +218,6 @@ const useAvatar = ({
     const assistantMessagesDiv = document.getElementById("assistantMessages");
     if (assistantMessagesDiv) assistantMessagesDiv.scrollTop = assistantMessagesDiv.scrollHeight;
 
-    // Wait for the speech to complete
     try {
       await speak(response);
       console.log("Speech completed for:", response);
@@ -235,7 +226,6 @@ const useAvatar = ({
       setErrorMessageWithTimeout("Failed to synthesize speech.");
     }
 
-    // Add a delay before processing the next response
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     isProcessingQueue.current = false;
@@ -244,7 +234,6 @@ const useAvatar = ({
       console.log("Processing next response in queue");
       processResponseQueue();
     } else {
-      // Clear messages 5.5 seconds after the last speech
       messageTimeoutRef.current = setTimeout(() => {
         setAssistantMessages("");
         console.log("Cleared assistantMessages after 5.5s timeout");
@@ -318,19 +307,21 @@ const useAvatar = ({
 
   const connectAvatar = useCallback((retryCallback = () => {}) => {
     console.log(`Starting avatar connection (Attempt ${retryCount.current + 1}/${maxRetries})...`);
-    setErrorMessageWithTimeout(retryCount.current > 0 ? `Retrying connection... (Attempt ${retryCount.current + 1}/${maxRetries})` : "");
+    showLoadingPopup();
     
     if (speechConfig.apiKey === "") {
-      setErrorMessageWithTimeout("Please fill in the API key of your speech resource.");
+      showErrorPopup("Surgeon is a little busy.\nPlease try again later, you will be redirected to home screen in 5 secs.");
       retryCount.current = 0;
+      setTimeout(() => window.location.assign("/home"), 5000);
       return;
     }
     if (
       speechConfig.enablePrivateEndpoint &&
       speechConfig.privateEndpoint === ""
     ) {
-      setErrorMessageWithTimeout("Please fill in the Azure Speech endpoint.");
+      showErrorPopup("Surgeon is a little busy.\nPlease try again later, you will be redirected to home screen in 5 secs.");
       retryCount.current = 0;
+      setTimeout(() => window.location.assign("/home"), 5000);
       return;
     }
     if (
@@ -338,10 +329,11 @@ const useAvatar = ({
       openAIConfig.apiKey === "" ||
       openAIConfig.deploymentName === ""
     ) {
-      setErrorMessageWithTimeout(
-        "Please fill in the Azure OpenAI endpoint, API key, and deployment name."
+      showErrorPopup(
+        "Surgeon is a little busy.\nPlease try again later, you will be redirected to home screen in 5 secs."
       );
       retryCount.current = 0;
+      setTimeout(() => window.location.assign("/home"), 5000);
       return;
     }
     if (
@@ -350,10 +342,11 @@ const useAvatar = ({
         cogSearchConfig.apiKey === "" ||
         cogSearchConfig.indexName === "")
     ) {
-      setErrorMessageWithTimeout(
-        "Please fill in the Azure Cognitive Search endpoint, API key, and index name."
+      showErrorPopup(
+        "Surgeon is a little busy.\nPlease try again later, you will be redirected to home screen in 5 secs."
       );
       retryCount.current = 0;
+      setTimeout(() => window.location.assign("/home"), 5000);
       return;
     }
 
@@ -439,11 +432,10 @@ const useAvatar = ({
         } else {
           retryCount.current += 1;
           if (retryCount.current >= maxRetries) {
-            setErrorMessageWithTimeout(
-              "Failed to connect to the avatar after multiple attempts. Please check your network/refresh or try again later."
-            );
+            showErrorPopup("Surgeon is a little busy.\nPlease try again later, you will be redirected to home screen in 5 secs.");
             retryCount.current = 0;
             console.error(`Failed to fetch WebRTC token after ${maxRetries} attempts: ${this.status} ${this.statusText}`);
+            setTimeout(() => window.location.assign("/home"), 5000);
           } else {
             setTimeout(() => {
               disconnectAvatar();
@@ -463,7 +455,8 @@ const useAvatar = ({
     sttTtsConfig,
     avatarConfig,
     disconnectAvatar,
-    setErrorMessageWithTimeout
+    showLoadingPopup,
+    showErrorPopup,
   ]);
 
   const setupWebRTC = useCallback(
@@ -551,11 +544,10 @@ const useAvatar = ({
         if (peerConnection.current.iceConnectionState === "failed") {
           retryCount.current += 1;
           if (retryCount.current >= maxRetries) {
-            setErrorMessageWithTimeout(
-              "Failed to connect to the avatar after multiple attempts. Please check your network/refresh or try again later."
-            );
+            showErrorPopup("Surgeon is a little busy.\nPlease try again later, you will be redirected to home screen in 5 secs.");
             retryCount.current = 0;
             console.error(`WebRTC connection failed after ${maxRetries} attempts`);
+            setTimeout(() => window.location.assign("/home"), 5000);
           } else {
             setTimeout(() => {
               disconnectAvatar();
@@ -576,15 +568,25 @@ const useAvatar = ({
             console.log(`Avatar started. Result ID: ${r.resultId}`);
             retryCount.current = 0;
             setSessionActive(true);
+            clearPopup();
+
+            // Trigger welcome message on first session start
+            if (!hasWelcomed.current) {
+              const welcomeMessage = "Hi, I am your surgeon. How can I help you today?";
+              console.log("Triggering welcome message:", welcomeMessage);
+              hasWelcomed.current = true;
+              responseQueue.current.push(welcomeMessage);
+              messages.current.push({ role: "assistant", content: welcomeMessage });
+              processResponseQueue();
+            }
           } else {
             console.error(`Unable to start avatar. Result ID: ${r.resultId}`);
             retryCount.current += 1;
             if (retryCount.current >= maxRetries) {
-              setErrorMessageWithTimeout(
-                "Failed to connect to the avatar after multiple attempts. Please check your network/refresh or try again later."
-              );
+              showErrorPopup("Surgeon is a little busy.\nPlease try again later, you will be redirected to home screen in 5 secs.");
               retryCount.current = 0;
               console.error(`Avatar failed to start after ${maxRetries} attempts. Result ID: ${r.resultId}`);
+              setTimeout(() => window.location.assign("/home"), 5000);
             } else {
               setTimeout(() => {
                 disconnectAvatar();
@@ -597,11 +599,10 @@ const useAvatar = ({
           console.error(`Avatar failed to start: ${error}`);
           retryCount.current += 1;
           if (retryCount.current >= maxRetries) {
-            setErrorMessageWithTimeout(
-              "Failed to connect to the avatar after multiple attempts. Please check your network/refresh or try again later."
-            );
+            showErrorPopup("Surgeon is a little busy.\nPlease try again later, you will be redirected to home screen in 5 secs.");
             retryCount.current = 0;
             console.error(`Avatar failed to start after ${maxRetries} attempts: ${error}`);
+            setTimeout(() => window.location.assign("/home"), 5000);
           } else {
             setTimeout(() => {
               disconnectAvatar();
@@ -610,7 +611,7 @@ const useAvatar = ({
           }
         });
     },
-    [showSubtitles, disconnectAvatar, setErrorMessageWithTimeout]
+    [showSubtitles, disconnectAvatar, clearPopup, showErrorPopup, speak, processResponseQueue]
   );
 
   const initMessages = useCallback(() => {
@@ -679,7 +680,6 @@ const useAvatar = ({
         await stopSpeaking();
       }
 
-      // Clear any existing timeout and UI
       if (messageTimeoutRef.current) {
         clearTimeout(messageTimeoutRef.current);
         messageTimeoutRef.current = null;
@@ -735,7 +735,6 @@ const useAvatar = ({
                     role: "assistant",
                     content: assistantReply,
                   });
-                  // Force processResponseQueue to ensure new response is handled
                   isProcessingQueue.current = false;
                   processResponseQueue();
                 }
@@ -846,11 +845,12 @@ const useAvatar = ({
       document.getElementById("localVideo").hidden = false;
       document.getElementById("remoteVideo").style.width = "0.1px";
       setSessionActive(true);
+      clearPopup();
       return;
     }
     retryCount.current = 0;
     connectAvatar(() => connectAvatar(() => connectAvatar()));
-  }, [useLocalVideoForIdle, connectAvatar]);
+  }, [useLocalVideoForIdle, connectAvatar, clearPopup]);
 
   const stopSession = useCallback(() => {
     console.log("Stop session clicked");
@@ -949,7 +949,7 @@ const useAvatar = ({
         },
         (err) => {
           console.error(`Failed to start recognition: ${err}`);
-          setErrorMessageWithTimeout("Failed to start microphone.");
+          setErrorMessageWithTimeout("Failed to stop microphone.");
         }
       );
     } catch (err) {

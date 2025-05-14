@@ -1,10 +1,11 @@
-import { useState } from "react";
-import useAvatar from "../hooks/useAvatar";
+import { useState, useRef } from "react";
 import ErrorMessage from "./ErrorMessage";
 import MessageBox from "./MessageBox";
+import { useAvatarContext } from "../contexts/AvatarContext";
 
-const AvatarChat = ({ config, onStartingChange }) => {
+const AvatarChat = () => {
   const [imgUrl, setImgUrl] = useState("");
+  const textareaRef = useRef(null);
 
   const {
     sessionActive,
@@ -13,30 +14,17 @@ const AvatarChat = ({ config, onStartingChange }) => {
     assistantMessages,
     errorMessage,
     microphoneText,
-    startSession,
     stopSession,
     toggleMicrophone,
     stopSpeaking,
     clearChatHistory,
     handleUserQuery,
-  } = useAvatar({
-    speechConfig: config.speech,
-    openAIConfig: config.openAI,
-    cogSearchConfig: config.cogSearch,
-    sttTtsConfig: config.sttTts,
-    avatarConfig: config.avatar,
-    enableOyd: config.cogSearch.enableOyd,
-    continuousConversation: config.sttTts.continuousConversation,
-    showSubtitles: config.avatar.showSubtitles,
-    autoReconnectAvatar: config.avatar.autoReconnect,
-    useLocalVideoForIdle: config.avatar.useLocalVideoForIdle,
-    prompt: config.openAI.prompt,
-  });
+  } = useAvatarContext();
 
-  const handleStartingChange = (isStarting) => {
-    // console.log("Starting state in grandchild:", isStarting);
-    onStartingChange?.(isStarting); // forward to parent
+  const setTextareaRef = (ref) => {
+    textareaRef.current = ref.current;
   };
+
   return (
     <div className="w-full flex flex-col items-center justify-center">
       <ErrorMessage errorMessage={errorMessage} />
@@ -45,18 +33,17 @@ const AvatarChat = ({ config, onStartingChange }) => {
         imgUrl={imgUrl}
         setImgUrl={setImgUrl}
         handleUserQuery={handleUserQuery}
-        useLocalVideoForIdle={config.avatar.useLocalVideoForIdle}
-        showSubtitles={config.avatar.showSubtitles}
+        useLocalVideoForIdle={false}
+        showSubtitles={false}
         chatHistory={chatHistory}
         assistantMessages={assistantMessages}
-        startSession={startSession}
         toggleMicrophone={toggleMicrophone}
         stopSpeaking={stopSpeaking}
         clearChatHistory={clearChatHistory}
         stopSession={stopSession}
         microphoneText={microphoneText}
         isSpeaking={isSpeaking}
-        onStartingChange={handleStartingChange}
+        setTextareaRef={setTextareaRef}
       />
     </div>
   );
