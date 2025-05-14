@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import PropTypes from "prop-types";
 import useAvatar from "../hooks/useAvatar";
 import ErrorMessage from "./ErrorMessage";
 import MessageBox from "./MessageBox";
 
-const AvatarChat = ({ config, onStartingChange }) => {
+const AvatarChat = ({ config, autoStart, onConnectionStatus }) => {
   const [imgUrl, setImgUrl] = useState("");
+  const navigate = useNavigate();
 
   const {
     sessionActive,
@@ -33,10 +36,23 @@ const AvatarChat = ({ config, onStartingChange }) => {
     prompt: config.openAI.prompt,
   });
 
-  const handleStartingChange = (isStarting) => {
-    // console.log("Starting state in grandchild:", isStarting);
-    onStartingChange?.(isStarting); // forward to parent
+  useEffect(() => {
+    if (onConnectionStatus) {
+      onConnectionStatus({ sessionActive, errorMessage });
+    }
+  }, [sessionActive, errorMessage, onConnectionStatus]);
+
+  useEffect(() => {
+    if (autoStart && !sessionActive) {
+      startSession();
+    }
+  }, [autoStart, sessionActive, startSession]);
+
+  const handleStopSession = () => {
+    stopSession();
+    navigate("/home");
   };
+
   return (
     <div className="w-full flex flex-col items-center justify-center">
       <ErrorMessage errorMessage={errorMessage} />
@@ -49,17 +65,60 @@ const AvatarChat = ({ config, onStartingChange }) => {
         showSubtitles={config.avatar.showSubtitles}
         chatHistory={chatHistory}
         assistantMessages={assistantMessages}
-        startSession={startSession}
         toggleMicrophone={toggleMicrophone}
         stopSpeaking={stopSpeaking}
         clearChatHistory={clearChatHistory}
-        stopSession={stopSession}
+        stopSession={handleStopSession}
         microphoneText={microphoneText}
         isSpeaking={isSpeaking}
-        onStartingChange={handleStartingChange}
       />
     </div>
   );
+};
+
+AvatarChat.propTypes = {
+  config: PropTypes.shape({
+    speech: PropTypes.shape({
+      region: PropTypes.string.isRequired,
+      apiKey: PropTypes.string.isRequired,
+      enablePrivateEndpoint: PropTypes.bool.isRequired,
+      EichmannPrivateEndpoint: PropTypes.string.isRequired,
+    }).isRequired,
+    openAI: PropTypes.shape({
+      endpoint: PropTypes.string.isRequired,
+      apiKey: PropTypes.string.isRequired,
+      deploymentName: PropTypes.string.isRequired,
+      prompt: PropTypes.string.isRequired,
+    }).isRequired,
+    cogSearch: PropTypes.shape({
+      enableOyd: PropTypes.bool.isRequired,
+      endpoint: PropTypes.string.isRequired,
+      apiKey: PropTypes.string.isRequired,
+      indexName: PropTypes.string.isRequired,
+    }).isRequired,
+    sttTts: PropTypes.shape({
+      sttLocales: PropTypes.string.isRequired,
+      ttsVoice: PropTypes.string.isRequired,
+      customVoiceEndpointId: PropTypes.string.isRequired,
+      personalVoiceSpeakerProfileID: PropTypes.string.isRequired,
+      continuousConversation: PropTypes.bool.isRequired,
+    }).isRequired,
+    avatar: PropTypes.shape({
+      character: PropTypes.string.isRequired,
+      style: PropTypes.string.isRequired,
+      customized: PropTypes.bool.isRequired,
+      autoReconnect: PropTypes.bool.isRequired,
+      useLocalVideoForIdle: PropTypes.bool.isRequired,
+      showSubtitles: PropTypes.bool.isRequired,
+    }).isRequired,
+  }).isRequired,
+  autoStart: PropTypes.bool,
+  onConnectionStatus: PropTypes.func,
+};
+
+AvatarChat.defaultProps = {
+  autoStart: false,
+  onConnectionStatus: null,
 };
 
 export default AvatarChat;

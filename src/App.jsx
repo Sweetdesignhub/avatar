@@ -828,21 +828,21 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/HomeComponents/Navbar";
 import Home from "./pages/Home";
+import ChatPage from "./pages/ChatPage";
 
 function App() {
   return (
     <div
-      className="min-w-screen min-h-screen bg-cover bg-center overflow-y-auto overflow-x-hidden"
-      style={{ backgroundImage: "url('/Background.jpg')" }}
+      className="w-screen min-h-screen bg-cover bg-center overflow-y-auto overflow-x-hidden"
     >
       <Navbar />
       <Routes>
         <Route path="/home" element={<Home />} />
+        <Route path="/chat" element={<ChatPage />} />
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </div>
   );
 }
-
 
 export default App;
