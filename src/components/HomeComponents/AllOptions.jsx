@@ -1,21 +1,11 @@
-import { useState } from "react";
+import { FaHeart, FaRegHeart, FaHeartbeat, FaMedkit, FaHospital } from "react-icons/fa";
 import OptionButton from "./OptionButton";
-import {
-  FaHeart,
-  FaRegHeart,
-  FaHeartbeat,
-  FaMedkit,
-  FaHospital,
-} from "react-icons/fa";
 
 export default function AllOptions({ onOptionSelect }) {
-  const [selectedOption, setSelectedOption] = useState(null);
-
-  const handleOptionClick = (label) => {
-    setSelectedOption(label);
-    console.log("Selected option:", label);
+  const handleOptionClick = (description) => {
+    console.log("Selected option description:", description);
     if (onOptionSelect) {
-      onOptionSelect(label);
+      onOptionSelect(description);
     }
   };
 

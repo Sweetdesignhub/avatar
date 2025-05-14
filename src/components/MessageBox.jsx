@@ -69,9 +69,9 @@ const MessageBox = ({
     <div>
       <div className="w-screen px-52 mx-auto flex flex-col p-4 bg-transparent">
 
-        <div className="w-[100%] flex h-[35vh] font-johnsonDisplay ">
+        <div className="w-[100%] flex h-[25vh] font-johnsonDisplay ">
 
-          <div className="w-[70%] h-full overflow-auto"
+          <div className="w-[70%] h-full overflow-auto z-20"
             style={{ scrollbarWidth: "thin" }}
           >
             <div
@@ -98,7 +98,7 @@ const MessageBox = ({
             </div>
             <div
               id="remoteVideo"
-              className="w-[520px] h-[180px] absolute bottom-20"
+              className="w-[550px] h-[180px] absolute bottom-16 -left-10"
               style={{ zIndex: 10, background: "transparent" }}
             ></div>
           </div>
@@ -106,7 +106,7 @@ const MessageBox = ({
         </div>
 
 
-        <div className="flex mt-4 flex-col bg-white rounded-xl border border-gray-200 p-2">
+        <div className="flex mt-4 flex-col bg-white z-30 rounded-xl border border-gray-200 p-2">
           <textarea
             id="userMessageBox"
             ref={textareaRef}

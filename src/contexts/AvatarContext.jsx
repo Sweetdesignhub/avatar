@@ -30,14 +30,14 @@ Behavior: No over-explaining, no hesitation — just confident, helpful directio
     },
     sttTts: {
       sttLocales: "en-US,de-DE,es-ES,fr-FR,it-IT,ja-JP,ko-KR,zh-CN",
-      ttsVoice: "en-US-EchoTurboMultilingualNeural",
+      ttsVoice: "en-US-CoraMultilingualNeural",
       customVoiceEndpointId: "",
       personalVoiceSpeakerProfileID: "",
       continuousConversation: false,
     },
     avatar: {
-      character: "harry",
-      style: "business",
+      character: "Lori",
+      style: "graceful",
       customized: false,
       autoReconnect: true,
       useLocalVideoForIdle: false,

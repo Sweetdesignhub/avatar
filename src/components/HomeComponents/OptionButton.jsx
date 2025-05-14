@@ -1,5 +1,3 @@
-"use client";
-
 export default function OptionButton({
   icon,
   title,
@@ -20,7 +18,7 @@ export default function OptionButton({
 
       {/* Bottom-left text */}
       <div className="absolute font-merriweather bottom-4 left-4 text-left">
-        <h3 className="font-medium font-semibold text-gray-800 text-sm">
+        <h3 className=" font-semibold text-gray-800 text-sm">
           {title}
         </h3>
         {/* <p className="text-gray-600 font-semibold text-xs">
